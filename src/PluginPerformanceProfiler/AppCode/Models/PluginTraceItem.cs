@@ -29,7 +29,7 @@ namespace PluginPerformanceProfiler.AppCode.Models
                     case 20: return "Pre-Operation (20)";
                     case 40: return "Post-Operation (40)";
                     case 50: return "Other (50)";
-                    default: return $"Stage {Stage}";
+                    default: return Stage > 0 ? $"Stage {Stage}" : "-";
                 }
             }
         }

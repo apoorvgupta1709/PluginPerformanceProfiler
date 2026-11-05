@@ -39,8 +39,40 @@ namespace PluginPerformanceProfiler.AppCode.Services
             return new EnvironmentTraceSetting { SettingCode = 1 }; // Default exception
         }
 
+        private Dictionary<Guid, int> FetchStepStages()
+        {
+            var dict = new Dictionary<Guid, int>();
+            try
+            {
+                var query = new QueryExpression("sdkmessageprocessingstep")
+                {
+                    ColumnSet = new ColumnSet("sdkmessageprocessingstepid", "stage")
+                };
+                var results = _service.RetrieveMultiple(query);
+                foreach (var entity in results.Entities)
+                {
+                    if (entity.Contains("stage"))
+                    {
+                        var stageOpt = entity.GetAttributeValue<OptionSetValue>("stage");
+                        if (stageOpt != null)
+                        {
+                            dict[entity.Id] = stageOpt.Value;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Non-admin or limited permissions fallback
+            }
+            return dict;
+        }
+
         public List<PluginTraceItem> FetchTraceLogs(ProfilerFilterConfig config, Action<string>? progressCallback = null)
         {
+            progressCallback?.Invoke("Retrieving plugin step stages...");
+            var stepStages = FetchStepStages();
+
             var list = new List<PluginTraceItem>();
             DateTime cutoff = DateTime.UtcNow.AddHours(-config.HoursBack);
 
@@ -51,8 +83,9 @@ namespace PluginPerformanceProfiler.AppCode.Services
                     "typename",
                     "messagename",
                     "primaryentity",
-                    "stage",
+                    "pluginstepid",
                     "mode",
+                    "operationtype",
                     "performanceexecutionduration",
                     "performanceexecutionstarttime",
                     "depth",
@@ -114,7 +147,7 @@ namespace PluginPerformanceProfiler.AppCode.Services
                 EntityCollection resp = _service.RetrieveMultiple(query);
                 foreach (var entity in resp.Entities)
                 {
-                    var item = MapEntityToTraceItem(entity);
+                    var item = MapEntityToTraceItem(entity, stepStages);
                     list.Add(item);
                     totalRetrieved++;
                     if (totalRetrieved >= config.MaxRecordsToFetch) break;
@@ -134,7 +167,7 @@ namespace PluginPerformanceProfiler.AppCode.Services
             return list;
         }
 
-        private PluginTraceItem MapEntityToTraceItem(Entity e)
+        private PluginTraceItem MapEntityToTraceItem(Entity e, Dictionary<Guid, int> stepStages)
         {
             var item = new PluginTraceItem
             {
@@ -149,10 +182,23 @@ namespace PluginPerformanceProfiler.AppCode.Services
                 MessageBlock = e.GetAttributeValue<string>("messageblock") ?? string.Empty
             };
 
-            if (e.Contains("stage"))
+            if (e.Contains("pluginstepid"))
             {
-                var stageOpt = e.GetAttributeValue<OptionSetValue>("stage");
-                item.Stage = stageOpt?.Value ?? 0;
+                Guid stepId = Guid.Empty;
+                var stepVal = e["pluginstepid"];
+                if (stepVal is EntityReference er)
+                {
+                    stepId = er.Id;
+                }
+                else if (stepVal is Guid g)
+                {
+                    stepId = g;
+                }
+
+                if (stepId != Guid.Empty && stepStages.TryGetValue(stepId, out int st))
+                {
+                    item.Stage = st;
+                }
             }
 
             if (e.Contains("mode"))
