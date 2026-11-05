@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PluginPerformanceProfiler</AssemblyName>
+    <RootNamespace>PluginPerformanceProfiler</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- NuGet Package Metadata -->
+    <IsPackable>true</IsPackable>
+    <PackageId>PluginPerformanceProfiler</PackageId>
+    <Version>1.0.0</Version>
+    <Title>Plugin Performance Profiler</Title>
+    <Authors>Apoorv Gupta</Authors>
+    <Company>Apoorv Gupta</Company>
+    <Description>Profile Microsoft Dataverse and Dynamics 365 plugin execution times from trace data. Detect slow steps, cascading loops, P90/P99 latency bottlenecks, and recursive triggers.</Description>
+    <PackageProjectUrl>https://github.com/apoorvgupta1709/PluginPerformanceProfiler</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/apoorvgupta1709/PluginPerformanceProfiler</RepositoryUrl>
+    <PackageTags>XrmToolBox;XrmToolBoxPlugin;Dataverse;Dynamics365;PowerPlatform;Plugin;Performance;Profiler;TraceLog;Latency;Monitoring</PackageTags>
+    <PackageReleaseNotes>Initial public release of Plugin Performance Profiler for XrmToolBox.</PackageReleaseNotes>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Place output inside lib\net48\Plugins for XrmToolBox Tool Library -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AddPluginFilesToPackage</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="XrmToolBoxPackage" Version="1.2025.7.71" />
+    <PackageReference Include="Microsoft.CrmSdk.CoreAssemblies" Version="9.0.2.59" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.VisualBasic" />
+  </ItemGroup>
+
+  <!-- Package Icon and Readme -->
+  <ItemGroup>
+    <None Include="icon.png" Pack="true" PackagePath="" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <!-- Target to place the compiled DLL and PDB inside lib\net48\Plugins\ for XrmToolBox -->
+  <Target Name="AddPluginFilesToPackage">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath)">
+        <PackagePath>lib\net48\Plugins</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')">
+        <PackagePath>lib\net48\Plugins</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+
+  <!-- Automatic local deployment to XrmToolBox on every build -->
+  <Target Name="DeployToXrmToolBox" AfterTargets="Build">
+    <PropertyGroup>
+      <XrmDownloadsDir>C:\Users\apoorv\Downloads\XrmToolbox</XrmDownloadsDir>
+      <XrmDownloadsPluginsDir>C:\Users\apoorv\Downloads\XrmToolbox\Plugins</XrmDownloadsPluginsDir>
+      <XrmAppDataPluginsDir>$(AppData)\MscrmTools\XrmToolBox\Plugins</XrmAppDataPluginsDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <DeployFiles Include="$(TargetPath)" />
+      <DeployFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(XrmDownloadsDir)" ContinueOnError="true" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(XrmDownloadsPluginsDir)" ContinueOnError="true" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(XrmAppDataPluginsDir)" Condition="Exists('$(XrmAppDataPluginsDir)')" ContinueOnError="true" />
+  </Target>
+
+</Project>

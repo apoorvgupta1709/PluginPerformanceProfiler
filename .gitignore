@@ -1,0 +1,13 @@
+## Build & Output directories
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Visual Studio
+.vs/
+.idea/
+*.nupkg
+*.snupkg
