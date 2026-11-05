@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using McTools.Xrm.Connection;
 using Microsoft.Xrm.Sdk;
 using PluginPerformanceProfiler.AppCode.Helpers;
 using PluginPerformanceProfiler.AppCode.Models;
@@ -27,6 +28,112 @@ namespace PluginPerformanceProfiler.UI
         {
             cboTimeRange.SelectedIndex = 2; // Last 24 hours
             cboMessage.SelectedIndex = 0;   // ALL
+            InitDropdownDefaults();
+            if (Service != null)
+            {
+                ExecuteMethod(LoadLookups);
+            }
+        }
+
+        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
+        {
+            base.UpdateConnection(newService, detail, actionName, parameter);
+            if (newService != null)
+            {
+                ExecuteMethod(LoadLookups);
+            }
+        }
+
+        private void InitDropdownDefaults()
+        {
+            if (cboEntity.Items.Count == 0)
+            {
+                cboEntity.Items.Add("ALL (Any Entity)");
+                cboEntity.SelectedIndex = 0;
+            }
+            if (cboPlugin.Items.Count == 0)
+            {
+                cboPlugin.Items.Add("ALL (Any Plugin)");
+                cboPlugin.SelectedIndex = 0;
+            }
+        }
+
+        private void btnRefreshLookups_Click(object sender, EventArgs e)
+        {
+            ExecuteMethod(LoadLookups);
+        }
+
+        private void LoadLookups()
+        {
+            if (Service == null) return;
+
+            lblStatus.Text = "Loading registered entities and plugin types...";
+            progressBar.Visible = true;
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Loading Entities & Plugins from Dataverse...",
+                Work = (worker, args) =>
+                {
+                    var reader = new TraceLogReaderService(Service);
+                    var entities = reader.FetchRegisteredEntities();
+                    var plugins = reader.FetchRegisteredPluginTypes();
+                    args.Result = new Tuple<List<string>, List<string>>(entities, plugins);
+                },
+                PostWorkCallBack = args =>
+                {
+                    progressBar.Visible = false;
+                    if (args.Error != null)
+                    {
+                        lblStatus.Text = "Failed to load lookups: " + args.Error.Message;
+                        return;
+                    }
+
+                    if (args.Result is Tuple<List<string>, List<string>> result)
+                    {
+                        var entities = result.Item1;
+                        var plugins = result.Item2;
+
+                        string currentEntity = cboEntity.Text;
+                        cboEntity.BeginUpdate();
+                        cboEntity.Items.Clear();
+                        cboEntity.Items.Add("ALL (Any Entity)");
+                        foreach (var ent in entities)
+                        {
+                            cboEntity.Items.Add(ent);
+                        }
+                        if (!string.IsNullOrWhiteSpace(currentEntity) && cboEntity.Items.Contains(currentEntity))
+                        {
+                            cboEntity.SelectedItem = currentEntity;
+                        }
+                        else
+                        {
+                            cboEntity.SelectedIndex = 0;
+                        }
+                        cboEntity.EndUpdate();
+
+                        string currentPlugin = cboPlugin.Text;
+                        cboPlugin.BeginUpdate();
+                        cboPlugin.Items.Clear();
+                        cboPlugin.Items.Add("ALL (Any Plugin)");
+                        foreach (var pl in plugins)
+                        {
+                            cboPlugin.Items.Add(pl);
+                        }
+                        if (!string.IsNullOrWhiteSpace(currentPlugin) && cboPlugin.Items.Contains(currentPlugin))
+                        {
+                            cboPlugin.SelectedItem = currentPlugin;
+                        }
+                        else
+                        {
+                            cboPlugin.SelectedIndex = 0;
+                        }
+                        cboPlugin.EndUpdate();
+
+                        lblStatus.Text = $"Lookups loaded ({entities.Count} entities, {plugins.Count} plugins). Ready.";
+                    }
+                }
+            });
         }
 
         private void btnRunProfiler_Click(object sender, EventArgs e)
@@ -57,12 +164,24 @@ namespace PluginPerformanceProfiler.UI
                 case 4: hours = 168; break;
             }
 
+            string entityFilter = cboEntity.Text.Trim();
+            if (entityFilter.StartsWith("ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                entityFilter = string.Empty;
+            }
+
+            string pluginFilter = cboPlugin.Text.Trim();
+            if (pluginFilter.StartsWith("ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                pluginFilter = string.Empty;
+            }
+
             var config = new ProfilerFilterConfig
             {
                 HoursBack = hours,
                 MessageFilter = cboMessage.SelectedItem?.ToString() ?? "ALL",
-                EntityFilter = txtEntity.Text.Trim(),
-                TypeNameFilter = txtSearch.Text.Trim(),
+                EntityFilter = entityFilter,
+                TypeNameFilter = pluginFilter,
                 SlowOnly = chkSlowOnly.Checked,
                 ExceptionsOnly = chkExceptionsOnly.Checked,
                 SyncOnly = chkSyncOnly.Checked,
@@ -287,7 +406,7 @@ namespace PluginPerformanceProfiler.UI
             string? typeName = dgvSteps.Rows[e.RowIndex].Cells["FullType"].Value?.ToString();
             if (!string.IsNullOrWhiteSpace(typeName))
             {
-                txtSearch.Text = typeName;
+                cboPlugin.Text = typeName;
                 tabControlMain.SelectedTab = tabRaw;
             }
         }

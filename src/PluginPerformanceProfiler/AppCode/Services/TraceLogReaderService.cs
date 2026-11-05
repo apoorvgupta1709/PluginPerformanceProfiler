@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using PluginPerformanceProfiler.AppCode.Models;
@@ -13,6 +14,105 @@ namespace PluginPerformanceProfiler.AppCode.Services
         public TraceLogReaderService(IOrganizationService service)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
+        }
+
+        public List<string> FetchRegisteredEntities()
+        {
+            var entities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var q = new QueryExpression("sdkmessagefilter")
+                {
+                    ColumnSet = new ColumnSet("primaryobjecttypecode"),
+                    Distinct = true
+                };
+                q.Criteria.AddCondition("primaryobjecttypecode", ConditionOperator.NotNull);
+                q.Criteria.AddCondition("primaryobjecttypecode", ConditionOperator.NotEqual, "none");
+
+                var results = _service.RetrieveMultiple(q);
+                foreach (var e in results.Entities)
+                {
+                    string ent = e.GetAttributeValue<string>("primaryobjecttypecode");
+                    if (!string.IsNullOrWhiteSpace(ent) && !ent.Equals("none", StringComparison.OrdinalIgnoreCase))
+                    {
+                        entities.Add(ent.Trim());
+                    }
+                }
+            }
+            catch
+            {
+                // Silently fallback to trace log query
+            }
+
+            try
+            {
+                var q2 = new QueryExpression("plugintracelog")
+                {
+                    ColumnSet = new ColumnSet("primaryentity"),
+                    Distinct = true,
+                    PageInfo = new PagingInfo { Count = 500, PageNumber = 1 }
+                };
+                var results2 = _service.RetrieveMultiple(q2);
+                foreach (var e in results2.Entities)
+                {
+                    string ent = e.GetAttributeValue<string>("primaryentity");
+                    if (!string.IsNullOrWhiteSpace(ent) && !ent.Equals("none", StringComparison.OrdinalIgnoreCase))
+                    {
+                        entities.Add(ent.Trim());
+                    }
+                }
+            }
+            catch { }
+
+            return entities.OrderBy(x => x).ToList();
+        }
+
+        public List<string> FetchRegisteredPluginTypes()
+        {
+            var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var q = new QueryExpression("plugintype")
+                {
+                    ColumnSet = new ColumnSet("typename", "friendlyname", "name")
+                };
+                q.Criteria.AddCondition("isworkflowactivity", ConditionOperator.Equal, false);
+                var results = _service.RetrieveMultiple(q);
+                foreach (var e in results.Entities)
+                {
+                    string tn = e.GetAttributeValue<string>("typename");
+                    if (!string.IsNullOrWhiteSpace(tn))
+                    {
+                        types.Add(tn.Trim());
+                    }
+                }
+            }
+            catch
+            {
+                // Silently fallback to trace log query
+            }
+
+            try
+            {
+                var q2 = new QueryExpression("plugintracelog")
+                {
+                    ColumnSet = new ColumnSet("typename"),
+                    Distinct = true,
+                    PageInfo = new PagingInfo { Count = 500, PageNumber = 1 }
+                };
+                var results2 = _service.RetrieveMultiple(q2);
+                foreach (var e in results2.Entities)
+                {
+                    string tn = e.GetAttributeValue<string>("typename");
+                    if (!string.IsNullOrWhiteSpace(tn))
+                    {
+                        types.Add(tn.Trim());
+                    }
+                }
+            }
+            catch { }
+
+            return types.OrderBy(x => x).ToList();
         }
 
         public EnvironmentTraceSetting GetEnvironmentTraceSetting()
@@ -114,12 +214,12 @@ namespace PluginPerformanceProfiler.AppCode.Services
                 query.Criteria.AddCondition("messagename", ConditionOperator.Equal, config.MessageFilter.Trim());
             }
 
-            if (!string.IsNullOrWhiteSpace(config.EntityFilter))
+            if (!string.IsNullOrWhiteSpace(config.EntityFilter) && !config.EntityFilter.StartsWith("ALL", StringComparison.OrdinalIgnoreCase))
             {
                 query.Criteria.AddCondition("primaryentity", ConditionOperator.Equal, config.EntityFilter.Trim().ToLowerInvariant());
             }
 
-            if (!string.IsNullOrWhiteSpace(config.TypeNameFilter))
+            if (!string.IsNullOrWhiteSpace(config.TypeNameFilter) && !config.TypeNameFilter.StartsWith("ALL", StringComparison.OrdinalIgnoreCase))
             {
                 query.Criteria.AddCondition("typename", ConditionOperator.Like, $"%{config.TypeNameFilter.Trim()}%");
             }

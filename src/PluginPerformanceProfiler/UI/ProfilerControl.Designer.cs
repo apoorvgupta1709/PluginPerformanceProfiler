@@ -19,6 +19,7 @@ namespace PluginPerformanceProfiler.UI
         {
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.btnRunProfilerTool = new System.Windows.Forms.ToolStripButton();
+            this.btnRefreshLookups = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.btnExportHtml = new System.Windows.Forms.ToolStripButton();
             this.btnExportCsv = new System.Windows.Forms.ToolStripButton();
@@ -32,9 +33,9 @@ namespace PluginPerformanceProfiler.UI
             this.lblMessage = new System.Windows.Forms.Label();
             this.cboMessage = new System.Windows.Forms.ComboBox();
             this.lblEntity = new System.Windows.Forms.Label();
-            this.txtEntity = new System.Windows.Forms.TextBox();
+            this.cboEntity = new System.Windows.Forms.ComboBox();
             this.lblSearch = new System.Windows.Forms.Label();
-            this.txtSearch = new System.Windows.Forms.TextBox();
+            this.cboPlugin = new System.Windows.Forms.ComboBox();
             this.btnApplyFilter = new System.Windows.Forms.Button();
             this.pnlCheckboxes = new System.Windows.Forms.FlowLayoutPanel();
             this.chkSlowOnly = new System.Windows.Forms.CheckBox();
@@ -117,6 +118,7 @@ namespace PluginPerformanceProfiler.UI
             this.toolStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnRunProfilerTool,
+            this.btnRefreshLookups,
             this.toolStripSeparator1,
             this.btnExportHtml,
             this.btnExportCsv,
@@ -137,6 +139,15 @@ namespace PluginPerformanceProfiler.UI
             this.btnRunProfilerTool.Size = new System.Drawing.Size(185, 28);
             this.btnRunProfilerTool.Text = "▶  Run Plugin Profiler";
             this.btnRunProfilerTool.Click += new System.EventHandler(this.btnRunProfiler_Click);
+            // 
+            // btnRefreshLookups
+            // 
+            this.btnRefreshLookups.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(65)))), ((int)(((byte)(85)))));
+            this.btnRefreshLookups.Name = "btnRefreshLookups";
+            this.btnRefreshLookups.Size = new System.Drawing.Size(140, 28);
+            this.btnRefreshLookups.Text = "🔄  Refresh Lookups";
+            this.btnRefreshLookups.ToolTipText = "Reload entities and plugin types from Dataverse environment";
+            this.btnRefreshLookups.Click += new System.EventHandler(this.btnRefreshLookups_Click);
             // 
             // toolStripSeparator1
             // 
@@ -212,9 +223,9 @@ namespace PluginPerformanceProfiler.UI
             this.tblFilters.Controls.Add(this.pnlCheckboxes, 4, 0);
             this.tblFilters.Controls.Add(this.btnApplyFilter, 5, 0);
             this.tblFilters.Controls.Add(this.lblEntity, 0, 1);
-            this.tblFilters.Controls.Add(this.txtEntity, 1, 1);
+            this.tblFilters.Controls.Add(this.cboEntity, 1, 1);
             this.tblFilters.Controls.Add(this.lblSearch, 2, 1);
-            this.tblFilters.Controls.Add(this.txtSearch, 3, 1);
+            this.tblFilters.Controls.Add(this.cboPlugin, 3, 1);
             this.tblFilters.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tblFilters.Location = new System.Drawing.Point(12, 6);
             this.tblFilters.Name = "tblFilters";
@@ -362,20 +373,21 @@ namespace PluginPerformanceProfiler.UI
             this.lblEntity.Name = "lblEntity";
             this.lblEntity.Size = new System.Drawing.Size(94, 50);
             this.lblEntity.TabIndex = 6;
-            this.lblEntity.Text = "Entity Filter:";
+            this.lblEntity.Text = "Entity:";
             this.lblEntity.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // txtEntity
+            // cboEntity
             // 
-            this.txtEntity.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtEntity.BackColor = System.Drawing.Color.White;
-            this.txtEntity.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.txtEntity.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-            this.txtEntity.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-            this.txtEntity.Location = new System.Drawing.Point(103, 56);
-            this.txtEntity.Name = "txtEntity";
-            this.txtEntity.Size = new System.Drawing.Size(248, 29);
-            this.txtEntity.TabIndex = 7;
+            this.cboEntity.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.cboEntity.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
+            this.cboEntity.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems;
+            this.cboEntity.DropDownWidth = 350;
+            this.cboEntity.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            this.cboEntity.FormattingEnabled = true;
+            this.cboEntity.Location = new System.Drawing.Point(103, 56);
+            this.cboEntity.Name = "cboEntity";
+            this.cboEntity.Size = new System.Drawing.Size(248, 29);
+            this.cboEntity.TabIndex = 7;
             // 
             // lblSearch
             // 
@@ -387,21 +399,22 @@ namespace PluginPerformanceProfiler.UI
             this.lblSearch.Name = "lblSearch";
             this.lblSearch.Size = new System.Drawing.Size(84, 50);
             this.lblSearch.TabIndex = 8;
-            this.lblSearch.Text = "Plugin Search:";
+            this.lblSearch.Text = "Plugin:";
             this.lblSearch.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // txtSearch
+            // cboPlugin
             // 
-            this.txtSearch.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtSearch.BackColor = System.Drawing.Color.White;
-            this.txtSearch.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tblFilters.SetColumnSpan(this.txtSearch, 2);
-            this.txtSearch.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-            this.txtSearch.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-            this.txtSearch.Location = new System.Drawing.Point(447, 56);
-            this.txtSearch.Name = "txtSearch";
-            this.txtSearch.Size = new System.Drawing.Size(503, 29);
-            this.txtSearch.TabIndex = 9;
+            this.cboPlugin.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.cboPlugin.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
+            this.cboPlugin.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems;
+            this.tblFilters.SetColumnSpan(this.cboPlugin, 2);
+            this.cboPlugin.DropDownWidth = 650;
+            this.cboPlugin.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            this.cboPlugin.FormattingEnabled = true;
+            this.cboPlugin.Location = new System.Drawing.Point(447, 56);
+            this.cboPlugin.Name = "cboPlugin";
+            this.cboPlugin.Size = new System.Drawing.Size(503, 29);
+            this.cboPlugin.TabIndex = 9;
             // 
             // tblCards
             // 
@@ -1000,10 +1013,11 @@ namespace PluginPerformanceProfiler.UI
         private System.Windows.Forms.CheckBox chkExceptionsOnly;
         private System.Windows.Forms.CheckBox chkSyncOnly;
         private System.Windows.Forms.Button btnApplyFilter;
+        private System.Windows.Forms.ToolStripButton btnRefreshLookups;
         private System.Windows.Forms.Label lblEntity;
-        private System.Windows.Forms.TextBox txtEntity;
+        private System.Windows.Forms.ComboBox cboEntity;
         private System.Windows.Forms.Label lblSearch;
-        private System.Windows.Forms.TextBox txtSearch;
+        private System.Windows.Forms.ComboBox cboPlugin;
         private System.Windows.Forms.TableLayoutPanel tblCards;
         private System.Windows.Forms.Panel cardTotal;
         private System.Windows.Forms.Label lblTotalVal;
