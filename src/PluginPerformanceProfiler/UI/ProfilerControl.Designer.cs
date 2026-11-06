@@ -36,6 +36,9 @@ namespace PluginPerformanceProfiler.UI
             this.cboEntity = new System.Windows.Forms.ComboBox();
             this.lblSearch = new System.Windows.Forms.Label();
             this.cboPlugin = new System.Windows.Forms.ComboBox();
+            this.pnlScope = new System.Windows.Forms.Panel();
+            this.lblScope = new System.Windows.Forms.Label();
+            this.cboPluginScope = new System.Windows.Forms.ComboBox();
             this.btnApplyFilter = new System.Windows.Forms.Button();
             this.pnlCheckboxes = new System.Windows.Forms.FlowLayoutPanel();
             this.chkSlowOnly = new System.Windows.Forms.CheckBox();
@@ -84,6 +87,7 @@ namespace PluginPerformanceProfiler.UI
             this.toolStrip1.SuspendLayout();
             this.pnlFilterContainer.SuspendLayout();
             this.tblFilters.SuspendLayout();
+            this.pnlScope.SuspendLayout();
             this.pnlCheckboxes.SuspendLayout();
             this.tblCards.SuspendLayout();
             this.cardTotal.SuspendLayout();
@@ -226,6 +230,7 @@ namespace PluginPerformanceProfiler.UI
             this.tblFilters.Controls.Add(this.cboEntity, 1, 1);
             this.tblFilters.Controls.Add(this.lblSearch, 2, 1);
             this.tblFilters.Controls.Add(this.cboPlugin, 3, 1);
+            this.tblFilters.Controls.Add(this.pnlScope, 4, 1);
             this.tblFilters.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tblFilters.Location = new System.Drawing.Point(12, 6);
             this.tblFilters.Name = "tblFilters";
@@ -407,14 +412,51 @@ namespace PluginPerformanceProfiler.UI
             this.cboPlugin.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.cboPlugin.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
             this.cboPlugin.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems;
-            this.tblFilters.SetColumnSpan(this.cboPlugin, 2);
             this.cboPlugin.DropDownWidth = 650;
             this.cboPlugin.Font = new System.Drawing.Font("Segoe UI", 9.5F);
             this.cboPlugin.FormattingEnabled = true;
             this.cboPlugin.Location = new System.Drawing.Point(447, 56);
             this.cboPlugin.Name = "cboPlugin";
-            this.cboPlugin.Size = new System.Drawing.Size(503, 29);
+            this.cboPlugin.Size = new System.Drawing.Size(248, 29);
             this.cboPlugin.TabIndex = 9;
+            // 
+            // pnlScope
+            // 
+            this.pnlScope.Controls.Add(this.cboPluginScope);
+            this.pnlScope.Controls.Add(this.lblScope);
+            this.pnlScope.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlScope.Location = new System.Drawing.Point(701, 49);
+            this.pnlScope.Name = "pnlScope";
+            this.pnlScope.Size = new System.Drawing.Size(249, 44);
+            this.pnlScope.TabIndex = 10;
+            // 
+            // lblScope
+            // 
+            this.lblScope.Dock = System.Windows.Forms.DockStyle.Left;
+            this.lblScope.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.lblScope.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
+            this.lblScope.Location = new System.Drawing.Point(0, 0);
+            this.lblScope.Name = "lblScope";
+            this.lblScope.Size = new System.Drawing.Size(55, 44);
+            this.lblScope.TabIndex = 0;
+            this.lblScope.Text = "Scope:";
+            this.lblScope.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // cboPluginScope
+            // 
+            this.cboPluginScope.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.cboPluginScope.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboPluginScope.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.cboPluginScope.FormattingEnabled = true;
+            this.cboPluginScope.Items.AddRange(new object[] {
+            "🛠️ Custom Only",
+            "🌐 All Plugins",
+            "🏢 Microsoft (OOB)"});
+            this.cboPluginScope.Location = new System.Drawing.Point(58, 8);
+            this.cboPluginScope.Name = "cboPluginScope";
+            this.cboPluginScope.Size = new System.Drawing.Size(188, 28);
+            this.cboPluginScope.TabIndex = 1;
+            this.cboPluginScope.SelectedIndexChanged += new System.EventHandler(this.cboPluginScope_SelectedIndexChanged);
             // 
             // tblCards
             // 
@@ -958,6 +1000,7 @@ namespace PluginPerformanceProfiler.UI
             this.pnlFilterContainer.ResumeLayout(false);
             this.tblFilters.ResumeLayout(false);
             this.tblFilters.PerformLayout();
+            this.pnlScope.ResumeLayout(false);
             this.pnlCheckboxes.ResumeLayout(false);
             this.pnlCheckboxes.PerformLayout();
             this.tblCards.ResumeLayout(false);
@@ -1018,6 +1061,9 @@ namespace PluginPerformanceProfiler.UI
         private System.Windows.Forms.ComboBox cboEntity;
         private System.Windows.Forms.Label lblSearch;
         private System.Windows.Forms.ComboBox cboPlugin;
+        private System.Windows.Forms.Panel pnlScope;
+        private System.Windows.Forms.Label lblScope;
+        private System.Windows.Forms.ComboBox cboPluginScope;
         private System.Windows.Forms.TableLayoutPanel tblCards;
         private System.Windows.Forms.Panel cardTotal;
         private System.Windows.Forms.Label lblTotalVal;

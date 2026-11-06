@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PluginPerformanceProfiler.AppCode.Models
 {
@@ -27,16 +28,31 @@ namespace PluginPerformanceProfiler.AppCode.Models
         }
     }
 
+    public enum PluginScopeOption
+    {
+        CustomOnly = 0,
+        All = 1,
+        MicrosoftOnly = 2
+    }
+
+    public class RegisteredPluginTypesResult
+    {
+        public List<string> CustomPlugins { get; set; } = new List<string>();
+        public List<string> MicrosoftPlugins { get; set; } = new List<string>();
+        public List<string> AllPlugins => CustomPlugins.Concat(MicrosoftPlugins).Distinct().OrderBy(x => x).ToList();
+    }
+
     public class ProfilerFilterConfig
     {
         public int HoursBack { get; set; } = 24; // 1, 6, 24, 72, 168
         public string MessageFilter { get; set; } = "ALL";
         public string EntityFilter { get; set; } = string.Empty;
         public string TypeNameFilter { get; set; } = string.Empty;
+        public PluginScopeOption PluginScope { get; set; } = PluginScopeOption.CustomOnly;
         public bool SlowOnly { get; set; } = false; // > 2000 ms
         public bool ExceptionsOnly { get; set; } = false;
         public bool SyncOnly { get; set; } = false;
-        public int MaxRecordsToFetch { get; set; } = 2500;
+        public int MaxRecordsToFetch { get; set; } = 3000;
     }
 
     public class EnvironmentTraceSetting

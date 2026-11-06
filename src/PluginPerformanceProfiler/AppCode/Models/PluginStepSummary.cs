@@ -6,6 +6,8 @@ namespace PluginPerformanceProfiler.AppCode.Models
     {
         public string StepKey => $"{TypeName}|{MessageName}|{PrimaryEntity}|{Stage}|{Mode}";
         public string TypeName { get; set; } = string.Empty;
+        public bool IsCustom => !PluginPerformanceProfiler.AppCode.Services.TraceLogReaderService.IsMicrosoftPlugin(TypeName);
+        public string OriginBadge => IsCustom ? "🛠️ Custom" : "🏢 Microsoft";
         public string ShortTypeName
         {
             get

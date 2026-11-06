@@ -67,52 +67,115 @@ namespace PluginPerformanceProfiler.AppCode.Services
             return entities.OrderBy(x => x).ToList();
         }
 
-        public List<string> FetchRegisteredPluginTypes()
+        public static bool IsMicrosoftPlugin(string? typeName)
         {
-            var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(typeName)) return false;
+            string t = typeName!.Trim();
+            return t.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
+                   t.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
+                   t.StartsWith("ActivityFeeds.", StringComparison.OrdinalIgnoreCase) ||
+                   t.StartsWith("msdyn_", StringComparison.OrdinalIgnoreCase) ||
+                   t.StartsWith("msdyn.", StringComparison.OrdinalIgnoreCase) ||
+                   t.StartsWith("Crm.", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsCustomPlugin(string? typeName)
+        {
+            return !IsMicrosoftPlugin(typeName);
+        }
+
+        public RegisteredPluginTypesResult FetchRegisteredPluginTypes()
+        {
+            var result = new RegisteredPluginTypesResult();
+            var customSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var msSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Fetch Custom Plugins directly from plugintype (NotLike Microsoft.%)
             try
             {
-                var q = new QueryExpression("plugintype")
+                var qCustom = new QueryExpression("plugintype")
                 {
-                    ColumnSet = new ColumnSet("typename", "friendlyname", "name")
+                    ColumnSet = new ColumnSet("typename", "friendlyname", "name"),
+                    Distinct = true,
+                    PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
                 };
-                q.Criteria.AddCondition("isworkflowactivity", ConditionOperator.Equal, false);
-                var results = _service.RetrieveMultiple(q);
-                foreach (var e in results.Entities)
+                qCustom.Criteria.AddCondition("isworkflowactivity", ConditionOperator.Equal, false);
+                qCustom.Criteria.AddCondition("typename", ConditionOperator.NotLike, "Microsoft.%");
+                qCustom.Criteria.AddCondition("typename", ConditionOperator.NotLike, "System.%");
+                qCustom.Criteria.AddCondition("typename", ConditionOperator.NotLike, "ActivityFeeds.%");
+
+                while (true)
                 {
-                    string tn = e.GetAttributeValue<string>("typename");
-                    if (!string.IsNullOrWhiteSpace(tn))
+                    var resp = _service.RetrieveMultiple(qCustom);
+                    foreach (var e in resp.Entities)
                     {
-                        types.Add(tn.Trim());
+                        string tn = e.GetAttributeValue<string>("typename");
+                        if (!string.IsNullOrWhiteSpace(tn))
+                        {
+                            if (IsCustomPlugin(tn))
+                                customSet.Add(tn.Trim());
+                            else
+                                msSet.Add(tn.Trim());
+                        }
                     }
+                    if (!resp.MoreRecords || qCustom.PageInfo.PageNumber >= 5) break;
+                    qCustom.PageInfo.PageNumber++;
+                    qCustom.PageInfo.PagingCookie = resp.PagingCookie;
                 }
             }
-            catch
-            {
-                // Silently fallback to trace log query
-            }
+            catch { }
 
+            // 2. Fetch distinct typenames from plugintracelog (captures any custom plugins that ran recently)
             try
             {
-                var q2 = new QueryExpression("plugintracelog")
+                var qLogs = new QueryExpression("plugintracelog")
                 {
                     ColumnSet = new ColumnSet("typename"),
                     Distinct = true,
-                    PageInfo = new PagingInfo { Count = 500, PageNumber = 1 }
+                    PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
                 };
-                var results2 = _service.RetrieveMultiple(q2);
-                foreach (var e in results2.Entities)
+                var respLogs = _service.RetrieveMultiple(qLogs);
+                foreach (var e in respLogs.Entities)
                 {
                     string tn = e.GetAttributeValue<string>("typename");
                     if (!string.IsNullOrWhiteSpace(tn))
                     {
-                        types.Add(tn.Trim());
+                        if (IsCustomPlugin(tn))
+                            customSet.Add(tn.Trim());
+                        else
+                            msSet.Add(tn.Trim());
                     }
                 }
             }
             catch { }
 
-            return types.OrderBy(x => x).ToList();
+            // 3. Fetch Microsoft / OOB plugin types
+            try
+            {
+                var qMs = new QueryExpression("plugintype")
+                {
+                    ColumnSet = new ColumnSet("typename"),
+                    Distinct = true,
+                    PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
+                };
+                qMs.Criteria.AddCondition("isworkflowactivity", ConditionOperator.Equal, false);
+                qMs.Criteria.AddCondition("typename", ConditionOperator.Like, "Microsoft.%");
+
+                var respMs = _service.RetrieveMultiple(qMs);
+                foreach (var e in respMs.Entities)
+                {
+                    string tn = e.GetAttributeValue<string>("typename");
+                    if (!string.IsNullOrWhiteSpace(tn))
+                    {
+                        msSet.Add(tn.Trim());
+                    }
+                }
+            }
+            catch { }
+
+            result.CustomPlugins = customSet.OrderBy(x => x).ToList();
+            result.MicrosoftPlugins = msSet.OrderBy(x => x).ToList();
+            return result;
         }
 
         public EnvironmentTraceSetting GetEnvironmentTraceSetting()
@@ -223,6 +286,19 @@ namespace PluginPerformanceProfiler.AppCode.Services
             {
                 query.Criteria.AddCondition("typename", ConditionOperator.Like, $"%{config.TypeNameFilter.Trim()}%");
             }
+            else
+            {
+                if (config.PluginScope == PluginScopeOption.CustomOnly)
+                {
+                    query.Criteria.AddCondition("typename", ConditionOperator.NotLike, "Microsoft.%");
+                    query.Criteria.AddCondition("typename", ConditionOperator.NotLike, "System.%");
+                    query.Criteria.AddCondition("typename", ConditionOperator.NotLike, "ActivityFeeds.%");
+                }
+                else if (config.PluginScope == PluginScopeOption.MicrosoftOnly)
+                {
+                    query.Criteria.AddCondition("typename", ConditionOperator.Like, "Microsoft.%");
+                }
+            }
 
             if (config.SlowOnly)
             {
@@ -248,6 +324,12 @@ namespace PluginPerformanceProfiler.AppCode.Services
                 foreach (var entity in resp.Entities)
                 {
                     var item = MapEntityToTraceItem(entity, stepStages);
+
+                    if (config.PluginScope == PluginScopeOption.CustomOnly && IsMicrosoftPlugin(item.TypeName))
+                        continue;
+                    if (config.PluginScope == PluginScopeOption.MicrosoftOnly && !IsMicrosoftPlugin(item.TypeName))
+                        continue;
+
                     list.Add(item);
                     totalRetrieved++;
                     if (totalRetrieved >= config.MaxRecordsToFetch) break;

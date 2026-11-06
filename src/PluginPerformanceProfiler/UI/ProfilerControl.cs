@@ -18,6 +18,7 @@ namespace PluginPerformanceProfiler.UI
     {
         private ProfilerAnalysisReport? _currentReport;
         private EnvironmentTraceSetting? _currentSetting;
+        private RegisteredPluginTypesResult _registeredPlugins = new RegisteredPluginTypesResult();
 
         public ProfilerControl()
         {
@@ -28,6 +29,7 @@ namespace PluginPerformanceProfiler.UI
         {
             cboTimeRange.SelectedIndex = 2; // Last 24 hours
             cboMessage.SelectedIndex = 0;   // ALL
+            cboPluginScope.SelectedIndex = 0; // Custom Only by default
             InitDropdownDefaults();
             if (Service != null)
             {
@@ -53,9 +55,57 @@ namespace PluginPerformanceProfiler.UI
             }
             if (cboPlugin.Items.Count == 0)
             {
-                cboPlugin.Items.Add("ALL (Any Plugin)");
+                PopulatePluginDropdown();
+            }
+        }
+
+        private void cboPluginScope_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            PopulatePluginDropdown();
+        }
+
+        private void PopulatePluginDropdown()
+        {
+            cboPlugin.BeginUpdate();
+            string previousText = cboPlugin.Text;
+            cboPlugin.Items.Clear();
+
+            List<string> listToDisplay;
+            string defaultHeader;
+
+            int scopeIdx = cboPluginScope.SelectedIndex;
+            if (scopeIdx == 2) // Microsoft Only
+            {
+                defaultHeader = "ALL Microsoft (OOB) Plugins";
+                listToDisplay = _registeredPlugins.MicrosoftPlugins;
+            }
+            else if (scopeIdx == 1) // All
+            {
+                defaultHeader = "ALL Plugins (Custom + OOB)";
+                listToDisplay = _registeredPlugins.AllPlugins;
+            }
+            else // Custom Only (0)
+            {
+                defaultHeader = "ALL Custom Plugins";
+                listToDisplay = _registeredPlugins.CustomPlugins;
+            }
+
+            cboPlugin.Items.Add(defaultHeader);
+            foreach (var p in listToDisplay)
+            {
+                cboPlugin.Items.Add(p);
+            }
+
+            if (!string.IsNullOrWhiteSpace(previousText) && cboPlugin.Items.Contains(previousText))
+            {
+                cboPlugin.SelectedItem = previousText;
+            }
+            else
+            {
                 cboPlugin.SelectedIndex = 0;
             }
+
+            cboPlugin.EndUpdate();
         }
 
         private void btnRefreshLookups_Click(object sender, EventArgs e)
@@ -78,7 +128,7 @@ namespace PluginPerformanceProfiler.UI
                     var reader = new TraceLogReaderService(Service);
                     var entities = reader.FetchRegisteredEntities();
                     var plugins = reader.FetchRegisteredPluginTypes();
-                    args.Result = new Tuple<List<string>, List<string>>(entities, plugins);
+                    args.Result = new Tuple<List<string>, RegisteredPluginTypesResult>(entities, plugins);
                 },
                 PostWorkCallBack = args =>
                 {
@@ -89,10 +139,10 @@ namespace PluginPerformanceProfiler.UI
                         return;
                     }
 
-                    if (args.Result is Tuple<List<string>, List<string>> result)
+                    if (args.Result is Tuple<List<string>, RegisteredPluginTypesResult> result)
                     {
                         var entities = result.Item1;
-                        var plugins = result.Item2;
+                        _registeredPlugins = result.Item2;
 
                         string currentEntity = cboEntity.Text;
                         cboEntity.BeginUpdate();
@@ -112,25 +162,9 @@ namespace PluginPerformanceProfiler.UI
                         }
                         cboEntity.EndUpdate();
 
-                        string currentPlugin = cboPlugin.Text;
-                        cboPlugin.BeginUpdate();
-                        cboPlugin.Items.Clear();
-                        cboPlugin.Items.Add("ALL (Any Plugin)");
-                        foreach (var pl in plugins)
-                        {
-                            cboPlugin.Items.Add(pl);
-                        }
-                        if (!string.IsNullOrWhiteSpace(currentPlugin) && cboPlugin.Items.Contains(currentPlugin))
-                        {
-                            cboPlugin.SelectedItem = currentPlugin;
-                        }
-                        else
-                        {
-                            cboPlugin.SelectedIndex = 0;
-                        }
-                        cboPlugin.EndUpdate();
+                        PopulatePluginDropdown();
 
-                        lblStatus.Text = $"Lookups loaded ({entities.Count} entities, {plugins.Count} plugins). Ready.";
+                        lblStatus.Text = $"Lookups loaded ({entities.Count} entities, {_registeredPlugins.CustomPlugins.Count} custom plugins, {_registeredPlugins.MicrosoftPlugins.Count} OOB plugins). Ready.";
                     }
                 }
             });
@@ -176,12 +210,17 @@ namespace PluginPerformanceProfiler.UI
                 pluginFilter = string.Empty;
             }
 
+            PluginScopeOption scopeOption = PluginScopeOption.CustomOnly;
+            if (cboPluginScope.SelectedIndex == 1) scopeOption = PluginScopeOption.All;
+            else if (cboPluginScope.SelectedIndex == 2) scopeOption = PluginScopeOption.MicrosoftOnly;
+
             var config = new ProfilerFilterConfig
             {
                 HoursBack = hours,
                 MessageFilter = cboMessage.SelectedItem?.ToString() ?? "ALL",
                 EntityFilter = entityFilter,
                 TypeNameFilter = pluginFilter,
+                PluginScope = scopeOption,
                 SlowOnly = chkSlowOnly.Checked,
                 ExceptionsOnly = chkExceptionsOnly.Checked,
                 SyncOnly = chkSyncOnly.Checked,
@@ -262,6 +301,7 @@ namespace PluginPerformanceProfiler.UI
             dgvSteps.DataSource = null;
             dgvSteps.DataSource = report.StepSummaries.Select(s => new
             {
+                Origin = s.OriginBadge,
                 PluginName = s.ShortTypeName,
                 Message = s.MessageName,
                 Entity = s.PrimaryEntity,
@@ -296,6 +336,7 @@ namespace PluginPerformanceProfiler.UI
             dgvRaw.DataSource = null;
             dgvRaw.DataSource = report.RawTraces.Take(1000).Select(t => new
             {
+                Origin = t.OriginBadge,
                 Time = t.StartTime.ToString("HH:mm:ss.fff"),
                 Plugin = t.ShortTypeName,
                 Message = t.MessageName,
@@ -406,6 +447,10 @@ namespace PluginPerformanceProfiler.UI
             string? typeName = dgvSteps.Rows[e.RowIndex].Cells["FullType"].Value?.ToString();
             if (!string.IsNullOrWhiteSpace(typeName))
             {
+                if (TraceLogReaderService.IsMicrosoftPlugin(typeName) && cboPluginScope.SelectedIndex == 0)
+                {
+                    cboPluginScope.SelectedIndex = 1; // Switch to All Plugins so the item is listed
+                }
                 cboPlugin.Text = typeName;
                 tabControlMain.SelectedTab = tabRaw;
             }
